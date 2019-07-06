@@ -72,13 +72,72 @@ def cut(string):
     return list(jieba.cut(string))
 
 
-douban = pandas.read_csv('movie_comments.csv', encoding='utf-8', low_memory=False)
+def get_tokens(articles):
+    TOKEN = []
+    for article in articles:
+        TOKEN += cut(article)
+    return TOKEN
 
-articles = douban['comment'].tolist()
 
-articles_clean = [''.join(token(str(e))) for e in articles]
+def prepare_words(path):
+    douban = pandas.read_csv(path, encoding='utf-8', low_memory=False)
+    articles = douban['comment'].tolist()
+    articles_clean = [''.join(token(str(e))) for e in articles]
+    return get_tokens(articles_clean)
 
-print(cut(articles_clean[1]))
+
+def prob_gram_1(word, words_count, len):
+    return words_count[word]/len
+
+
+def prob_gram_2(word1, word2, words_count, len):
+    if word1+word2 in words_count:
+        return words_count[word1+word2]/len
+    else:
+        return 1/len
+
+
+def get_probablity(sentence, words_count, len):
+    words = cut(sentence)
+    sentence_pro = 1
+    for i, word in enumerate(words[:-1]):
+        probability = prob_gram_2(words[i], words[i+1], words_count, len)
+        sentence_pro *= probability
+    return sentence_pro
+
+
+def generate_best(grammar, target, words_count, len): # you code here
+    sentences = []
+    for i in range(100):
+        sentence = generate(create_grammar(grammar), target)
+        probability = get_probablity(sentence, words_count, len)
+        sentences.append([
+            sentence,
+            probability
+        ])
+    sorted(sentences, key=lambda x:x[1], reverse=True)
+    return sentences[0]
+
+TOKEN = prepare_words('movie_comments.csv')
+
+words_count = Counter(TOKEN)
+
+TOKEN_GRAM_2 = [''.join(TOKEN[i:i+2]) for i in range(len(TOKEN[:-2]))]
+
+words_count2 = Counter(TOKEN_GRAM_2)
+
+get_probablity('早上我在天安门看升旗', words_count2, len(TOKEN_GRAM_2))
+
+best_sentence = generate_best(simple_grammar, 'sentence', words_count2, len(TOKEN_GRAM_2))
+print(best_sentence)
+
+
+
+
+
+
+
+
 
 
 
