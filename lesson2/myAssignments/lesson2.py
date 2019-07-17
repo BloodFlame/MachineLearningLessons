@@ -70,5 +70,68 @@ def get_geo_distance(city1, city2):
 city_gragh = nx.Graph()
 city_gragh.add_nodes_from(list(city_location.keys()))
 
-nx.draw(city_gragh, city_location,with_labels=True, node_size=10, font_family ='SimSun', font_size = 11)
-plt.show()
+# nx.draw(city_gragh, city_location,with_labels=True, node_size=10, font_family ='YouYuan', font_size = 11)
+# plt.show()
+
+"""
+BFS 和 DFS
+"""
+simple_connection_info_src = {
+    '北京': ['太原', '沈阳'],
+    '太原': ['北京', '西安', '郑州'],
+    '兰州': ['西安'],
+    '郑州': ['太原'],
+    '西安': ['兰州', '长沙'],
+    '长沙': ['福州', '南宁'],
+    '沈阳': ['北京'],
+    '南宁': ['长沙'],
+    '福州': ['长沙']
+}
+# simple_connection_info_gragh = nx.Graph(simple_connection_info_src)
+# nx.draw(simple_connection_info_gragh, city_location, with_labels=True, node_size=10, font_family='YouYuan', font_size=11)
+# plt.show()
+
+def bfs_search(start, end):
+    pathes = [[start]]
+    while pathes:
+        path = pathes.pop()
+        if not path or path[-1] not in simple_connection_info_src:
+            return 'No way'
+        next_cities = simple_connection_info_src[path[-1]]
+        for city in next_cities:
+            if city in path:
+                continue
+            new_path = path + [city]
+            print('bfs ', city)
+            if city == end:
+                return new_path
+            pathes = pathes + [new_path]
+    return "No way"
+
+# 递归来写很简单的，用遍历来写真的头大，但是运行效率好一些，没有大量栈帧回收的消耗和递归太深耗尽运行栈的问题
+def dfs_search(start, end):
+    stack = [start]
+    path = []
+    while stack:
+        cur_city = stack.pop()
+        print('dfs ', cur_city)
+        path.append(cur_city)
+        if cur_city == end:
+            return path
+        if cur_city in simple_connection_info_src:
+            next_cities = simple_connection_info_src[cur_city]
+            new_cities = []
+            for city in next_cities:
+                if city in path:
+                    continue
+                new_cities.append(city)
+            if new_cities:
+                stack = stack + new_cities
+            else:
+                path.pop()
+        else:
+            path.pop()
+    return "Can't reach"
+
+print(bfs_search('沈阳', '福州'))
+print(dfs_search('沈阳', '福州'))
