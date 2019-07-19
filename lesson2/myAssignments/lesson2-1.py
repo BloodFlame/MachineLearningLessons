@@ -80,12 +80,12 @@ simple_connection_info_src = {
     '北京': ['太原', '沈阳'],
     '太原': ['北京', '西安', '郑州'],
     '兰州': ['西安'],
-    '郑州': ['太原'],
-    '西安': ['兰州', '长沙'],
-    '长沙': ['福州', '南宁'],
+    '郑州': ['太原', '福州'],
+    '西安': ['兰州', '长沙', '太原'],
+    '长沙': ['福州', '南宁', '西安'],
     '沈阳': ['北京'],
     '南宁': ['长沙'],
-    '福州': ['长沙']
+    '福州': ['长沙', '郑州']
 }
 # simple_connection_info_gragh = nx.Graph(simple_connection_info_src)
 # nx.draw(simple_connection_info_gragh, city_location, with_labels=True, node_size=10, font_family='YouYuan', font_size=11)
@@ -93,31 +93,47 @@ simple_connection_info_src = {
 
 def bfs_search(start, end):
     pathes = [[start]]
+    results = []
+    print('BFS:',start,end='')
     while pathes:
         path = pathes.pop()
         if not path or path[-1] not in simple_connection_info_src:
-            return 'No way'
+            return results
         next_cities = simple_connection_info_src[path[-1]]
         for city in next_cities:
             if city in path:
                 continue
             new_path = path + [city]
-            print('bfs ', city)
+            print('->',city,end='')
             if city == end:
-                return new_path
-            pathes = pathes + [new_path]
-    return "No way"
+                results.append(new_path)
+            else:
+                pathes = pathes + [new_path]
+    return results
 
 # 递归来写很简单的，用遍历来写真的头大，但是运行效率好一些，没有大量栈帧回收的消耗和递归太深耗尽运行栈的问题
 def dfs_search(start, end):
     stack = [start]
     path = []
+    results = []
+    pre_path_node = {}
+    #记录每个城市遍历时在path中的上一个城市位置，在已经找到或者某路径尽头没有找到时回退path,由于是图
+    # ，有可能多次遍历同一个点，使用一个list来保存，尾端是最新的一次遍历结果
+    pre_path_node[start] = [0]
+    print('DFS: ', end='')
+    first_one = True
     while stack:
         cur_city = stack.pop()
-        print('dfs ', cur_city)
+        path = path[:pre_path_node[cur_city].pop()+1]
+        if first_one:
+            print(cur_city,end='')
+            first_one = False
+        else:
+            print('->',cur_city,end='')
         path.append(cur_city)
         if cur_city == end:
-            return path
+            results.append(path.copy())
+            continue
         if cur_city in simple_connection_info_src:
             next_cities = simple_connection_info_src[cur_city]
             new_cities = []
@@ -125,13 +141,35 @@ def dfs_search(start, end):
                 if city in path:
                     continue
                 new_cities.append(city)
+                if city not in pre_path_node:
+                    pre_path_node[city] = [len(path)-1]
+                else:
+                    pre_path_node[city].append(len(path)-1)
             if new_cities:
                 stack = stack + new_cities
-            else:
-                path.pop()
-        else:
-            path.pop()
-    return "Can't reach"
+    return results
 
-print(bfs_search('沈阳', '福州'))
-print(dfs_search('沈阳', '福州'))
+# print('\n', bfs_search('沈阳', '南宁'))
+# print('\n', dfs_search('沈阳', '南宁'))
+"""
+BFS 和 DFS 路径比较
+BFS: 沈阳-> 北京-> 太原-> 西安-> 郑州-> 福州-> 长沙-> 南宁-> 西安-> 兰州-> 兰州-> 长沙-> 福州-> 南宁-> 郑州
+DFS: 沈阳-> 北京-> 太原-> 郑州-> 福州-> 长沙-> 西安-> 兰州-> 南宁-> 西安-> 长沙-> 南宁-> 福州-> 郑州-> 兰州
+"""
+def lest_city_passed_by(path):
+    return len(path)
+
+def shortest_path(path):
+    distance = 0
+    for i in range(len(path)-1):
+        distance += get_geo_distance(path[i], path[i+1])
+    return distance
+
+
+# 下面在多条路径中通过不同策略进行推荐
+def search(begin, end, sort_candidate):
+    return sorted(bfs_search(begin, end), key=sort_candidate)[0]
+
+#分别通过最少站数和最短路程查询的路径
+print(search('沈阳', '长沙', shortest_path))
+print(search('沈阳', '长沙', lest_city_passed_by))
