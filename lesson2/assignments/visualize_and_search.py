@@ -12,6 +12,7 @@ sites_coordinate = {}
 sites_subway = {}
 
 # 读取站点坐标
+last_site = None
 while True:
     line = sites_coordinate_file.readline()
     if not line:
@@ -37,13 +38,16 @@ while True:
             sites_connection[sites[i]].add(sites[i-1])
         if i < len(sites)-1:
             sites_connection[sites[i]].add(sites[i+1])
+    # sites_gragh = nx.MultiGraph(sites_connection)
+    # nx.draw(sites_gragh, sites_coordinate, with_labels=True, node_size=12, font_family='YouYuan', font_size=7)
+    # plt.show()
 
 subway_sites_file.close()
 sites_coordinate_file.close()
 
-# sites_gragh = nx.Graph(sites_connection)
-# nx.draw(sites_gragh, sites_coordinate, with_labels=True, node_size=12, font_family='YouYuan', font_size=7)
-# plt.show()
+sites_gragh = nx.MultiGraph(sites_connection)
+nx.draw(sites_gragh, sites_coordinate, with_labels=True, node_size=12, font_family='YouYuan', font_size=8)
+plt.show()
 
 
 # 还是很丑,因该是nx对应方法和参数问题,回头再研究,先写搜索方法
@@ -76,13 +80,15 @@ def bfs_search(begin, end):
 
 
 # 直接搜索不加策略，如果是中间涉及换成，结果会很久很久出不来，但是大多数是没有意义的(绕路了)，需要加策略
-print(bfs_search('北安河站', '焦化厂站'))
+# print(bfs_search('北安河站', '焦化厂站'))
 
 
 # 根据经纬度计算距离
 def geo_distance(origin, destination):
-    long1, lat1 = origin
-    long2, lat2 = destination
+    if origin not in sites_coordinate or destination not in sites_coordinate:
+        raise Exception('不能识别的站点')
+    long1, lat1 = sites_coordinate[origin]
+    long2, lat2 = sites_coordinate[destination]
     radius = 6371
     # 两地间弧度计算，经纬度也就是角度值
     dlat = math.radians(lat2 - lat1)
@@ -98,17 +104,17 @@ def SINTER(a, b):
     import collections
     A, B = map(collections.Counter, (a, b))
     # collections.Counter & 求两个collections.Counter中相同元素的最小频次
-    return list((A&B).elements)
+    return list((A&B).elements())
 
 
 # 判断是否换乘(需要往前两站来判断)
-def if_transfered(cur, prior, pp):
+def judge_transfered(cur, prior, pp):
     a = SINTER(sites_subway[cur], sites_subway[prior])
     b = SINTER(sites_subway[prior], sites_subway[pp])
     if SINTER(a, b):
-        return True
-    else:
         return False
+    else:
+        return True
 
 
 # 路程最短或者最少换成或者综合(换乘一次相当于路程增加5km)
@@ -146,11 +152,25 @@ def policy_search(begin, end, policy='shortest'):
                 continue
             if site in path:
                 continue
+            if path_value > min_value:
+                continue
             if site == end:
                 path.append(site)
-                result.append(path)
-                print(path)
+                result = path
+                min_value = path_value
                 continue
             new_path = path + [site]
             pathes.append(new_path)
+            # 地理距离
+            path_value = path_value + distance_k * geo_distance(new_path[-1], new_path[-2])
+            # 是否换乘了
+            if len(path)>2:
+                if judge_transfered(path[-3], path[-2], path[-1]):
+                    path_value = path_value + freq_k
+            pathes_value.append(path_value)
     return result
+
+
+print("->".join(policy_search('北安河站', '焦化厂站', 'least')))
+print("->".join(policy_search('北安河站', '焦化厂站', 'shortest')))
+print("->".join(policy_search('北安河站', '焦化厂站', 'comprehensive')))
